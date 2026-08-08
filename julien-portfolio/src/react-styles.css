@@ -9,6 +9,9 @@
   --gold: #c99a3c;
   --gold-strong: #a67d2e;
   --gold-dim: rgba(201, 154, 60, 0.1);
+  /* Text/icon colour for anything sitting ON a gold fill. Gold inverts between
+     themes, so this has to invert with it or filled buttons lose contrast. */
+  --on-gold: #0f0c04;
   --border: rgba(255, 255, 255, 0.065);
   --border-strong: rgba(255, 255, 255, 0.12);
   --shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
@@ -19,6 +22,27 @@
   --menubar-h: 28px;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /*
+   * Dock tile hues. One hue per app so icons stay findable by colour, but a
+   * single shared lightness and a deliberately low chroma keep the row reading
+   * as one anodized set rather than a rainbow. Gold is not in this ramp: it is
+   * reserved for the open/focus state so that state always wins the eye.
+   */
+  --tile-l1: 0.355;
+  --tile-l2: 0.255;
+  --tile-c:  0.055;
+
+  --hue-about: 252;
+  --hue-experience: 288;
+  --hue-research: 198;
+  --hue-projects: 62;
+  --hue-robots: 224;
+  --hue-competitions: 86;
+  --hue-organizations: 22;
+  --hue-certificates: 152;
+  --hue-contact: 236;
+  --hue-terminal: 250;
 }
 
 @media (prefers-color-scheme: light) {
@@ -31,9 +55,17 @@
     --gold: #8a5f16;
     --gold-strong: #6d4c10;
     --gold-dim: rgba(138, 95, 22, 0.08);
+    --on-gold: #fffaf0;
     --border: rgba(0, 0, 0, 0.065);
     --border-strong: rgba(0, 0, 0, 0.12);
     --shadow: 0 4px 24px rgba(16, 28, 50, 0.1);
+
+    /* On a white dock the tiles have to carry themselves: lift lightness and
+       raise chroma, or they read as grey smudges instead of a set. Capped at
+       0.585 so the white icons still clear 3:1 against the tile. */
+    --tile-l1: 0.585;
+    --tile-l2: 0.475;
+    --tile-c:  0.105;
   }
 }
 
@@ -222,12 +254,47 @@ a { color: var(--gold); }
   place-items: center;
   border-radius: 11px;
   border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.14);
   /* Strong ease-out — no bounce */
   transition: transform 0.2s var(--ease-out),
               filter 0.14s ease,
               box-shadow 0.14s ease;
+}
+
+/* One rule drives every tile; only the hue token changes per app. */
+.dock-item[data-app] {
+  background: linear-gradient(
+    150deg,
+    oklch(var(--tile-l1) var(--tile-c) var(--tile-hue)) 0%,
+    oklch(var(--tile-l2) var(--tile-c) var(--tile-hue)) 100%
+  );
+}
+
+.dock-item[data-app='about']         { --tile-hue: var(--hue-about); }
+.dock-item[data-app='experience']    { --tile-hue: var(--hue-experience); }
+.dock-item[data-app='research']      { --tile-hue: var(--hue-research); }
+.dock-item[data-app='projects']      { --tile-hue: var(--hue-projects); }
+.dock-item[data-app='robots']        { --tile-hue: var(--hue-robots); }
+.dock-item[data-app='competitions']  { --tile-hue: var(--hue-competitions); }
+.dock-item[data-app='organizations'] { --tile-hue: var(--hue-organizations); }
+.dock-item[data-app='certificates']  { --tile-hue: var(--hue-certificates); }
+.dock-item[data-app='contact']       { --tile-hue: var(--hue-contact); }
+
+/* Terminal is the odd one out on purpose: near-neutral, so it reads as chrome
+   rather than as another content app. */
+.dock-item[data-app='terminal'] {
+  --tile-hue: var(--hue-terminal);
+  background: linear-gradient(
+    150deg,
+    oklch(calc(var(--tile-l1) - 0.055) calc(var(--tile-c) * 0.4) var(--tile-hue)) 0%,
+    oklch(calc(var(--tile-l2) - 0.05)  calc(var(--tile-c) * 0.4) var(--tile-hue)) 100%
+  );
 }
 
 .dock-item:hover {
@@ -242,10 +309,26 @@ a { color: var(--gold); }
   transition-duration: 0.08s;
 }
 
+/* Keyboard focus: gold ring, double-stroked so it reads on any tile hue */
+.dock-item:focus-visible {
+  outline: none;
+  transform: translateY(-10px) scale(1.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45),
+    0 0 0 2px var(--bg-elev),
+    0 0 0 4px var(--gold),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  z-index: 3;
+}
+
+/* Open apps are marked in gold: the one accent, reserved for state */
 .dock-item.is-open {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3),
-    0 0 0 1.5px rgba(255, 255, 255, 0.12),
+    0 0 0 1.5px color-mix(in oklab, var(--gold) 62%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.dock-item.is-open .dock-icon {
+  color: color-mix(in oklab, var(--gold) 34%, #ffffff);
 }
 
 /* Hover label */
@@ -301,7 +384,8 @@ a { color: var(--gold); }
   width: 3.5px;
   height: 3.5px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--gold);
+  box-shadow: 0 0 5px color-mix(in oklab, var(--gold) 70%, transparent);
 }
 
 /* ── Windows ── */
@@ -528,6 +612,32 @@ a { color: var(--gold); }
   color: var(--text);
   font-size: 0.9rem;
   line-height: 1.72;
+  max-width: 72ch;
+}
+
+/* Publication byline: sits between title and abstract, quieter than both */
+.authors {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.79rem;
+  line-height: 1.6;
+  max-width: 72ch;
+}
+
+.authors strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Standfirst for the Research window */
+.research-lede {
+  margin: 0 0 26px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.7;
+  max-width: 62ch;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
 }
 
 .job-highlights {
@@ -753,7 +863,7 @@ a { color: var(--gold); }
   font-weight: 600;
   font-size: 0.82rem;
   background: var(--gold);
-  color: #0f0c04;
+  color: var(--on-gold);
   letter-spacing: 0.01em;
   transition: background 0.15s ease, transform 0.12s ease;
 }
@@ -879,7 +989,7 @@ a { color: var(--gold); }
   font-weight: 600;
   font-size: 0.8rem;
   background: var(--gold);
-  color: #0f0c04;
+  color: var(--on-gold);
   transition: background 0.15s ease, transform 0.1s ease;
 }
 
@@ -1145,5 +1255,35 @@ a { color: var(--gold); }
     transform: none;
     filter: none;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+}
+
+/*
+ * Reduced motion: strip travel and looping animation, keep state legible.
+ * Focus and open-state rings are shadows, so they survive untouched.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Magnification is travel, not feedback: replace it with a static lift cue */
+  .dock-item:hover,
+  .dock-item:focus-visible {
+    transform: none;
+  }
+
+  .dock-item:hover {
+    filter: brightness(1.2);
+  }
+
+  .typer-cursor {
+    animation: none;
+    opacity: 1;
   }
 }

@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import {
+  User, Briefcase, Microscope, FolderGit2, Bot,
+  Trophy, Users, GraduationCap, Mail, SquareTerminal,
+} from 'lucide-react';
 import './react-styles.css';
 
 // Import images from assets
@@ -17,68 +21,59 @@ import AKOImage from './assets/ako.png';
 import resqImage from './assets/resq.png';
 import suaveImage from './assets/squave.png';
 import resumeworthyImage from './assets/resumeworthy.png';
-import cbImage from './assets/cb.png';
+import dockerImage from './assets/docker.svg';
+import roverArmImage from './assets/rover-arm.jpg';
 
 // App definitions (each section becomes an app)
 const APPS = {
   about: {
     id: 'about',
     title: 'About Me',
-    icon: '👤',
     component: 'AboutApp',
   },
   experience: {
     id: 'experience',
     title: 'Experience',
-    icon: '💼',
     component: 'ExperienceApp',
   },
   research: {
     id: 'research',
     title: 'Research',
-    icon: '🔬',
     component: 'ResearchApp',
   },
   projects: {
     id: 'projects',
     title: 'Projects',
-    icon: '📁',
     component: 'ProjectsApp',
   },
   robots: {
     id: 'robots',
     title: 'Robots & Gadgets',
-    icon: '🤖',
     component: 'RobotsApp',
   },
   competitions: {
     id: 'competitions',
     title: 'Competitions',
-    icon: '🏆',
     component: 'CompetitionsApp',
   },
   organizations: {
     id: 'organizations',
     title: 'Organizations',
-    icon: '👥',
     component: 'OrgsApp',
   },
   certificates: {
     id: 'certificates',
     title: 'Certificates',
-    icon: '🎓',
     component: 'CertsApp',
   },
   contact: {
     id: 'contact',
     title: 'Contact',
-    icon: '📬',
     component: 'ContactApp',
   },
   terminal: {
     id: 'terminal',
     title: 'Terminal',
-    icon: '⌨️',
     component: 'TerminalApp',
   },
 };
@@ -192,8 +187,8 @@ function App() {
     {
       id: 'ros-docker-container',
       title: 'ROS 2 Docker Development Environment',
-      image: cbImage,
-      alt: 'ROS 2 Docker Container',
+      image: dockerImage,
+      alt: 'Docker logo, representing the containerized ROS 2 Humble development environment',
       summary: 'Built a containerized ROS 2 Humble dev environment with NiceGUI for the UGRT robotics team.',
       description:
         'Designed and built a Docker containerized ROS 2 Humble development environment for the University of Guelph Robotics Team (UGRT), enabling consistent cross-platform builds for the rover\'s software stack. The setup uses Docker Compose to mount the Basestation NiceGUI project (web-based operator UI) into the container, with a ros:humble-ros-base image. Developers can colcon build the full ROS workspace inside the container and interact via an interactive shell — eliminating environment drift across team members\' machines. Integrated with UGRT\'s GitHub workflow for the CIRC (Canadian International Rover Challenge) competition.',
@@ -202,8 +197,8 @@ function App() {
     {
       id: 'dynamixel-ik-control',
       title: 'Dynamixel Arm: Inverse Kinematics & ROS 2 Teleoperation',
-      image: roboticsImage,
-      alt: 'Dynamixel Inverse Kinematics',
+      image: roverArmImage,
+      alt: 'UGRT rover chassis on sawhorses in the lab, with the Dynamixel arm and wiring harness mounted',
       summary: 'Implemented full IK pipeline (DH forward kinematics + law-of-cosines IK) for a 5-motor Dynamixel arm in ROS 2.',
       description:
         'Built a complete 3R planar arm kinematics library and ROS 2 teleoperation node for the UGRT rover arm (5 Dynamixel XL430 motors: dual shoulder, elbow, dual wrist). Implemented Denavit-Hartenberg forward kinematics (identical formulation to ABB IRB-120 analysis) and 2D planar inverse kinematics via wrist-decoupling + law of cosines, with joint-limit enforcement and FK round-trip validation. The ROS 2 node (dynajoy) supports two live-switchable control modes: velocity mode (joystick-direct, with LB-triggered differential wrist) and IK mode (right-stick moves Cartesian end-effector target, IK solves shoulder/elbow/wrist, sends Dynamixel position commands). All arm parameters (link lengths, encoder counts, joint limits, step size) are exposed on the ROS 2 parameter server and overrideable at runtime without rebuilding.',
@@ -487,15 +482,48 @@ function App() {
       }
     } else if (lower.startsWith('ask ')) {
       const query = cmd.slice(4);
+      if (!query.trim()) {
+        setTerminalHistory((h) => [
+          ...h,
+          { type: 'output', text: 'Usage: ask <question>  e.g. ask what is your cloud experience?' },
+        ]);
+        return;
+      }
       setTerminalHistory((h) => [...h, { type: 'output', text: `Querying RAG: "${query}"...` }]);
+
+      // The RAG lives on a Hugging Face Space that cold-starts, so allow a long
+      // window, but never hang the terminal indefinitely.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
       try {
         const res = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query }),
+          signal: controller.signal,
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+
+        if (!res.ok) {
+          // A sleeping or crashed Space answers 5xx with an HTML page, so report
+          // the situation rather than leaking a status code at the visitor.
+          const text = res.status >= 500
+            ? 'The RAG backend is offline right now. Everything it knows is also in the Experience, Research, and Projects apps, which you can open from the dock.'
+            : `The RAG backend rejected that request (HTTP ${res.status}).`;
+          setTerminalHistory((h) => [...h, { type: 'output', text }]);
+          return;
+        }
+
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          setTerminalHistory((h) => [
+            ...h,
+            { type: 'output', text: 'The RAG backend returned an unreadable response. Try again in a moment.' },
+          ]);
+          return;
+        }
+
         setTerminalHistory((h) => [...h, { type: 'output', text: data.response || 'No response.' }]);
         if (data.sources?.length) {
           setTerminalHistory((h) => [
@@ -507,7 +535,12 @@ function App() {
           ]);
         }
       } catch (err) {
-        setTerminalHistory((h) => [...h, { type: 'output', text: `Error: ${err.message}` }]);
+        const text = err.name === 'AbortError'
+          ? 'The RAG backend did not answer within 45s. It may be waking up — try again shortly.'
+          : 'Could not reach the RAG backend. Check your connection and try again.';
+        setTerminalHistory((h) => [...h, { type: 'output', text }]);
+      } finally {
+        clearTimeout(timeout);
       }
     } else {
       setTerminalHistory((h) => [...h, { type: 'output', text: `Unknown command. Type "help".` }]);
@@ -602,25 +635,28 @@ function App() {
       </div>
 
       {/* Dock */}
-      <div className="dock">
+      <nav className="dock" aria-label="Applications">
         {Object.values(APPS).map((app) => {
           const isOpen = openWindows.some((w) => w.id === app.id);
           return (
-            <div
+            <button
               key={app.id}
+              type="button"
               className={`dock-item ${isOpen ? 'is-open' : ''}`}
-              style={{ background: APP_COLORS[app.id] }}
+              data-app={app.id}
               onClick={() => openWindow(app.id)}
               data-label={app.title}
+              aria-label={isOpen ? `${app.title} (open)` : app.title}
+              aria-pressed={isOpen}
             >
               <span className="dock-icon">
                 <AppIcon id={app.id} />
               </span>
-              {isOpen && <span className="dock-dot" />}
-            </div>
+              {isOpen && <span className="dock-dot" aria-hidden="true" />}
+            </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* Windows */}
       {openWindows
@@ -659,45 +695,23 @@ function App() {
 
 // ===================== Dock icon system ====================
 
-const APP_COLORS = {
-  about:         'linear-gradient(145deg, #5b82f0 0%, #3455cc 100%)',
-  experience:    'linear-gradient(145deg, #a56de0 0%, #7238c0 100%)',
-  research:      'linear-gradient(145deg, #38c47a 0%, #1a9250 100%)',
-  projects:      'linear-gradient(145deg, #f09050 0%, #d06020 100%)',
-  robots:        'linear-gradient(145deg, #40c8f0 0%, #1890c0 100%)',
-  competitions:  'linear-gradient(145deg, #e8c040 0%, #b89010 100%)',
-  organizations: 'linear-gradient(145deg, #f07878 0%, #c03838 100%)',
-  certificates:  'linear-gradient(145deg, #50d080 0%, #28a050 100%)',
-  contact:       'linear-gradient(145deg, #48b0e8 0%, #2078c0 100%)',
-  terminal:      'linear-gradient(145deg, #384838 0%, #1e2c1e 100%)',
+const APP_ICONS = {
+  about: User,
+  experience: Briefcase,
+  research: Microscope,
+  projects: FolderGit2,
+  robots: Bot,
+  competitions: Trophy,
+  organizations: Users,
+  certificates: GraduationCap,
+  contact: Mail,
+  terminal: SquareTerminal,
 };
 
 function AppIcon({ id }) {
-  const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round', strokeLinejoin: 'round' };
-  switch (id) {
-    case 'about':
-      return <svg viewBox="0 0 24 24" {...s}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7"/></svg>;
-    case 'experience':
-      return <svg viewBox="0 0 24 24" {...s}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="2" y1="12" x2="22" y2="12"/></svg>;
-    case 'research':
-      return <svg viewBox="0 0 24 24" {...s}><circle cx="10" cy="11" r="7"/><line x1="21" y1="21" x2="15.5" y2="15.5"/><line x1="10" y1="8" x2="10" y2="14"/><line x1="7" y1="11" x2="13" y2="11"/></svg>;
-    case 'projects':
-      return <svg viewBox="0 0 24 24" {...s}><path d="M3 9a2 2 0 0 1 2-2h4l2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/></svg>;
-    case 'robots':
-      return <svg viewBox="0 0 24 24" {...s}><rect x="7" y="7" width="10" height="10" rx="1"/><path d="M7 9H5m2 3H5m2 3H5m12-6h2m-2 3h2m-2 3h2M9 7V5m3 2V5m3 2V5M9 17v2m3-2v2m3-2v2"/></svg>;
-    case 'competitions':
-      return <svg viewBox="0 0 24 24" {...s}><path d="M7 2h10v9a5 5 0 0 1-10 0V2z"/><path d="M17 5h2a2 2 0 0 1 0 4h-2M7 5H5a2 2 0 0 0 0 4h2"/><line x1="12" y1="16" x2="12" y2="20"/><line x1="8" y1="21" x2="16" y2="21"/></svg>;
-    case 'organizations':
-      return <svg viewBox="0 0 24 24" {...s}><circle cx="8" cy="7" r="3"/><path d="M2 21v-1a6 6 0 0 1 6-6h1"/><circle cx="16" cy="7" r="3"/><path d="M14 21v-1a6 6 0 0 1 6-6h1"/></svg>;
-    case 'certificates':
-      return <svg viewBox="0 0 24 24" {...s}><circle cx="12" cy="9" r="5"/><path d="M9.5 14.5 8 22l4-2.5 4 2.5-1.5-7.5"/></svg>;
-    case 'contact':
-      return <svg viewBox="0 0 24 24" {...s}><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 8 10 6 10-6"/></svg>;
-    case 'terminal':
-      return <svg viewBox="0 0 24 24" {...s}><rect x="2" y="3" width="20" height="18" rx="2"/><path d="m7 9 4 4-4 4"/><line x1="13" y1="17" x2="18" y2="17"/></svg>;
-    default:
-      return null;
-  }
+  const Icon = APP_ICONS[id];
+  if (!Icon) return null;
+  return <Icon size={22} strokeWidth={1.75} absoluteStrokeWidth aria-hidden="true" />;
 }
 
 // ===================== Sub-app components ====================
@@ -804,7 +818,7 @@ function HomeApp({ heroImage }) {
 
           <div className="hero-metrics">
             <div className="hero-metric">
-              <span className="hero-metric-value">3</span>
+              <span className="hero-metric-value">5</span>
               <span className="hero-metric-label">Conference Papers</span>
             </div>
             <div className="hero-metric">
@@ -865,14 +879,16 @@ function ExperienceApp({ coOperatorsLogo, cySciLogo, guelphLogo, athenaGuardLogo
         <img src={coOperatorsLogo} alt="Co-operators Logo" className="image" />
         <p className="job-date">
           <span className="date-range">Jan 2026 - Present</span>
-          <span className="location">Co-Operators, Guelph, ON</span>
+          <span className="location">Co-Operators, Toronto, ON</span>
         </p>
-        <p className="job-description">Leading cloud infrastructure optimization and automation initiatives at one of Canada's largest insurance and financial services cooperatives, driving operational excellence and compliance improvements.</p>
+        <p className="job-description">Leading cloud infrastructure, security telemetry, and automation initiatives at one of Canada's largest insurance and financial services cooperatives, driving operational excellence and audit readiness.</p>
         <ul className="job-highlights">
-          <li>Optimized alerting infrastructure for internal monitoring of Azure pay-as-you-go disk storage across <strong>209 file share instances</strong> using Azure PowerShell modules, improving system observability and reducing operational overhead.</li>
-          <li>Recognized for <strong>"Execute with accountability"</strong> by leading the identification and removal of <strong>233 unused service accounts (16.1% reduction)</strong> from Azure Active Directory, advancing IGA/PAM compliance initiatives using PowerShell with custom Azure portal packages.</li>
-          <li>Developed a Python automation system for Jira and Confluence using <strong>FastAPI</strong>, <strong>Jinja2</strong>, and Jira API, applying bulk changes to <strong>10+ projects</strong> and adding custom fields to <strong>30+ screens</strong>, significantly reducing manual configuration time.</li>
-          <li>Upgraded production <strong>PostgreSQL databases from v13 to v16</strong> using <strong>Terraform (IaC)</strong> across Azure infrastructure, validating deployments against JFrog Artifactory instances hosted on both Azure and AWS.</li>
+          <li>Architected an <strong>ML email classifier on AKS</strong>, selecting <strong>Logistic Regression + TF-IDF</strong> over Naive Bayes and SVM through <strong>MLflow</strong> experiment tracking. Automated <strong>ServiceNow</strong> ticket creation and deduplication via <strong>Microsoft Graph API</strong> and <strong>.NET</strong>, cutting triage time for the <strong>30+ person CPOE team by 77%</strong> (30 min to under 7 min).</li>
+          <li>Engineered a <strong>Splunk Cloud/Enterprise</strong> log ingestion pipeline across <strong>8 IAM servers</strong>, handling <strong>2.5M+ events/day</strong> and <strong>50 GB</strong> of indexed IAM telemetry, with real-time dashboards that auto-generate <strong>ServiceNow</strong> incidents. Extended automated monitoring across <strong>215 Azure</strong> file share instances.</li>
+          <li>Recognized for <strong>"Execute with accountability"</strong> after eliminating <strong>233 orphaned service accounts (16.1% reduction)</strong> from <strong>Azure Active Directory</strong> via automated <strong>PowerShell</strong>, strengthening <strong>IGA/PAM</strong> posture.</li>
+          <li>Executed a <strong>zero-downtime PostgreSQL v13 to v16</strong> migration using <strong>Terraform (IaC)</strong> across both <strong>Azure</strong> and <strong>AWS</strong>, validating deployments against JFrog Artifactory instances on each cloud.</li>
+          <li>Delivered <strong>Python/FastAPI</strong> and <strong>Jinja2</strong> automation across <strong>10+ Jira and Confluence projects</strong> (30+ screens), extended with <strong>4 Rovo agents</strong> running custom system prompts that auto-generate sprint completion reports and retrospectives on close. Mentored a <strong>Kyndryl team of 6+</strong> future Jira admins with ongoing support and how-to recordings; resolved <strong>200+ Jira</strong> and <strong>100+ ServiceNow</strong> tickets.</li>
+          <li>Extracted <strong>20 auditor-ready evidence artifacts</strong> spanning <strong>10 SOC 2 controls</strong> (incident management, incident communication, server decommissioning) through targeted <strong>Splunk SPL</strong> and <strong>ServiceNow</strong> queries for external audit review.</li>
         </ul>
       </div>
 
@@ -939,6 +955,69 @@ function ResearchApp() {
   return (
     <div className="research-app">
       <h2 className="section-title">Research History</h2>
+      <p className="research-lede">
+        Five peer-reviewed conference papers on retrieval-augmented reasoning, machine reading
+        comprehension, and LLM adversarial robustness.
+      </p>
+
+      <div className="experience-item">
+        <h3 className="job-title">From Hints to Answers: Uncertainty-Aware LLM-Guided Retrieval for Multi-Hop Question Answering</h3>
+        <p className="job-date-location">
+          <span className="date-range">2026</span> |
+          <span className="location">Canadian AI 2026 (PMLR v318)</span>
+        </p>
+        <p className="authors">
+          Mahdiyar Ali Akbar Alavi, Bita Azad, <strong>Julien Serbanescu</strong>, Fattane Zarrinkalam, Faezeh Ensan
+        </p>
+        <p className="par">
+          An uncertainty-aware retrieval framework in which the model's own confidence signals steer
+          evidence gathering across multi-hop question answering, using hints to guide retrieval
+          rather than committing to a fixed chain up front.
+        </p>
+        <div className="pdf-preview">
+          <h4>Read the Paper:</h4>
+          <div className="pdf-options">
+            <a
+              href="https://proceedings.mlr.press/v318/alavi26a.html"
+              target="_blank"
+              rel="noreferrer"
+              className="pdf-link preview-link"
+            >
+              <span className="pdf-icon" aria-hidden="true"></span> View on PMLR
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div className="experience-item">
+        <h3 className="job-title">Cause-Conditioned Multi-Task Learning for Answerable Question Suggestion in MRC</h3>
+        <p className="job-date-location">
+          <span className="date-range">2026</span> |
+          <span className="location">Canadian AI 2026 (PMLR v318)</span>
+        </p>
+        <p className="authors">
+          Hadiseh Moradisani, Fattane Zarrinkalam, <strong>Julien Serbanescu</strong>, Zeinab Noorian
+        </p>
+        <p className="par">
+          A joint multi-task framework that classifies why a question is unanswerable across six
+          causes (entity swap, number swap, antonym, negation, mutual exclusion, no information)
+          while simultaneously generating a revised question the passage can answer. Reader
+          ensembles and LLM judges validate the suggestions by majority vote.
+        </p>
+        <div className="pdf-preview">
+          <h4>Read the Paper:</h4>
+          <div className="pdf-options">
+            <a
+              href="https://proceedings.mlr.press/v318/moradisani26a.html"
+              target="_blank"
+              rel="noreferrer"
+              className="pdf-link preview-link"
+            >
+              <span className="pdf-icon" aria-hidden="true"></span> View on PMLR
+            </a>
+          </div>
+        </div>
+      </div>
 
       <div className="experience-item">
         <h3 className="job-title">FalseCoTQA: Adversarial Multi-Hop QA via Knowledge-Grounded False Chains of Thought</h3>
@@ -946,8 +1025,13 @@ function ResearchApp() {
           <span className="date-range">Sep. 2025</span> |
           <span className="location">SIGIR-AP 2025</span>
         </p>
+        <p className="authors">
+          <strong>Julien Serbanescu</strong>, Mahdiyar Ali Akbar Alavi, Faezeh Ensan, Fattane Zarrinkalam
+        </p>
         <p className="par">
-          I co-authored a research paper titled <i>"FalseCoTQA: Adversarial Multi-Hop QA via Knowledge-Grounded False Chains of Thought"</i>, which was <strong>nominated for best paper</strong> at SIGIR-AP 2025.
+          An adversarial multi-hop QA benchmark that injects knowledge-grounded fabrications into
+          reasoning chains, exposing failures that cut accuracy by 30% on GPT-3.5 Turbo,
+          Mixtral-8x7B, and LLaMA 2. <strong>Nominated for best paper</strong> at SIGIR-AP 2025.
         </p>
         <div className="pdf-preview">
           <h4>Read the Paper:</h4>
@@ -958,31 +1042,7 @@ function ResearchApp() {
               rel="noreferrer"
               className="pdf-link preview-link"
             >
-              <span className="pdf-icon"></span> View on ACM
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <div className="experience-item">
-        <h3 className="job-title">UnAnswGen: Generating Unanswerable Questions</h3>
-        <p className="job-date-location">
-          <span className="date-range">Aug. 2024</span> |
-          <span className="location">SIGIR-AP 2024 Submission</span>
-        </p>
-        <p className="par">
-          I co-authored a research paper titled <i>"UnAnswGen: A Systematic Approach for Generating Unanswerable Questions in Machine Reading Comprehension"</i>, exploring dataset generation strategies for evaluating LLM robustness under incomplete or misleading contexts.
-        </p>
-        <div className="pdf-preview">
-          <h4>Read the Paper:</h4>
-          <div className="pdf-options">
-            <a
-              href="https://dl.acm.org/doi/pdf/10.1145/3673791.3698413"
-              target="_blank"
-              rel="noreferrer"
-              className="pdf-link preview-link"
-            >
-              <span className="pdf-icon"></span> View on ACM
+              <span className="pdf-icon" aria-hidden="true"></span> View on ACM
             </a>
           </div>
         </div>
@@ -994,8 +1054,13 @@ function ResearchApp() {
           <span className="date-range">Aug. 2025</span> |
           <span className="location">CIKM 2025</span>
         </p>
+        <p className="authors">
+          Havva Alizadeh Noughabi, <strong>Julien Serbanescu</strong>, Fattane Zarrinkalam, Ali Dehghantanha
+        </p>
         <p className="par">
-          I co-authored a research paper titled <i>"Uncovering the Persuasive Fingerprint of LLMs in Jailbreaking Attacks"</i>, investigating the persuasive patterns and techniques used by large language models in jailbreaking scenarios.
+          An investigation of the persuasive patterns large language models fall back on during
+          jailbreak attempts, and what those recurring rhetorical signatures reveal about model
+          vulnerability.
         </p>
         <div className="pdf-preview">
           <h4>Read the Paper:</h4>
@@ -1006,7 +1071,36 @@ function ResearchApp() {
               rel="noreferrer"
               className="pdf-link preview-link"
             >
-              <span className="pdf-icon"></span> View on ACM
+              <span className="pdf-icon" aria-hidden="true"></span> View on ACM
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div className="experience-item">
+        <h3 className="job-title">UnAnswGen: A Systematic Approach for Generating Unanswerable Questions in Machine Reading Comprehension</h3>
+        <p className="job-date-location">
+          <span className="date-range">Aug. 2024</span> |
+          <span className="location">SIGIR-AP 2024</span>
+        </p>
+        <p className="authors">
+          Hadiseh Moradisani, Fattane Zarrinkalam, <strong>Julien Serbanescu</strong>, Zeinab Noorian
+        </p>
+        <p className="par">
+          A systematic pipeline for generating unanswerable questions, producing 944,326 candidates
+          refined into a 130,319-instance dataset for evaluating LLM robustness under incomplete or
+          misleading context.
+        </p>
+        <div className="pdf-preview">
+          <h4>Read the Paper:</h4>
+          <div className="pdf-options">
+            <a
+              href="https://dl.acm.org/doi/pdf/10.1145/3673791.3698413"
+              target="_blank"
+              rel="noreferrer"
+              className="pdf-link preview-link"
+            >
+              <span className="pdf-icon" aria-hidden="true"></span> View on ACM
             </a>
           </div>
         </div>
