@@ -1310,6 +1310,21 @@ function CertsApp() {
       <div className="experience-section">
 
         <div className="experience-item">
+          <h3 className="job-title">Verified Industry Credentials</h3>
+          <div className="job-date-location">
+            <span className="date-range">Jul 2026 – Aug 2026</span>
+            <span className="location">AMD · Oracle</span>
+          </div>
+          <div className="job-description">
+            <p>Proctored credentials with public, independently verifiable badge records:</p>
+            <ul className="cert-list">
+              <li><strong>AMD ROCm Certified Associate</strong> — Aug 2026 · AMD GPU architecture, HIP programming, CUDA porting, ROCm libraries (rocBLAS / MIOpen / rocFFT), PyTorch on ROCm, and kernel optimization. Hands-on labs executed on an AMD Instinct <strong>MI300X</strong>. · <a href="https://www.credly.com/badges/35d964c6-cc21-4afe-9280-4881cbd1e89e/public_url" target="_blank" rel="noopener noreferrer" className="subtle-link">Verify on Credly →</a></li>
+              <li><strong>Oracle Agentic AI Certified Foundations Associate</strong> — Jul 2026 – Jul 2028 · Foundations of agentic AI systems. · <a href="https://catalog-education.oracle.com/ords/certview/sharebadge?id=53AF69D482CAFD56001581E5BC32C039173A794981DDD8C3ECCC2AC9C1BCF1AB" target="_blank" rel="noopener noreferrer" className="subtle-link">Verify badge →</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="experience-item">
           <h3 className="job-title">Anthropic &amp; Claude Certifications</h3>
           <div className="job-date-location">
             <span className="date-range">Apr 2026 – May 2026</span>
