@@ -1356,6 +1356,8 @@ function CertsApp() {
           <div className="job-description">
             <p>Additional certifications across AI/ML, cloud computing, and specialized technologies:</p>
             <ul className="cert-list">
+              <li><strong>Cisco Splunk for AI Operations (CAIOP)</strong> — Cisco U, Sep 2026 · Applying Splunk to AIOps: anomaly detection over machine data, predictive alerting, and AI-assisted incident triage.</li>
+              <li><strong>Designing Cisco UCS X-Series for AI (DCUCSX)</strong> — Cisco U, Sep 2026 · Designing UCS X-Series data center infrastructure for AI/ML workloads: GPU node topology, fabric, and storage sizing for training and inference.</li>
               <li><strong>Kaggle Certificates:</strong> Machine Learning, Deep Learning, Pandas, Time Series, Feature Engineering, Computer Vision, Intro to SQL, Advanced SQL</li>
               <li><strong>Google Cloud Badges:</strong> Big Data and Machine Learning Fundamentals, Build and Deploy Machine Learning Solutions on Vertex AI</li>
               <li><strong>Care AI Certificate:</strong> Introducing Artificial Intelligence: The Road Ahead</li>
